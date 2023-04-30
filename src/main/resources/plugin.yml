@@ -1,0 +1,8 @@
+name: BuilderAuditSys
+version: '${project.version}'
+main: com.mcsls.builderauditsys.BuilderAuditSys
+api-version: 1.19
+
+commands:
+  StartBuildAudit:
+    description: 开始建筑类玩家审核
