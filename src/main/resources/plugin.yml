@@ -6,3 +6,6 @@ api-version: 1.19
 commands:
   StartBuildAudit:
     description: 开始建筑类玩家审核
+
+  SetbasePoint:
+    description: 设置建筑类玩家审核的计算原点
