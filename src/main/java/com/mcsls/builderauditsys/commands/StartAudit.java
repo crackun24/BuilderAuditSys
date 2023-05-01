@@ -92,6 +92,8 @@ public class StartAudit implements CommandExecutor {//开启审核执行的指�
         try {
             Location teleportLocation;//玩家传送点的位置
             Area area = GetPlayerArea(player.getUniqueId().toString());//获取玩家对应对平台
+            int size = this.mConf.GetPlatformSize();//获取平台的大小
+
             if (area == null)//玩家没有平台
             {
                 player.sendMessage(PluginInfo.LOGGER_PREFIX + Msg.buildingPlatform);//发送正在建筑平台的信息
@@ -100,7 +102,6 @@ public class StartAudit implements CommandExecutor {//开启审核执行的指�
                 int cross = areaAmount % this.mConf.GetMaxCross();//获取列数
                 int raw = areaAmount / this.mConf.GetMaxCross();//获取行数
 
-                int size = this.mConf.GetPlatformSize();//获取平台的大小
                 int separation = this.mConf.GetSeparation();//获取平台的间隔
 
                 int distanceX = this.mConf.GetBasePointX() - size * cross - cross * separation;//计算区域x之间的间隔
@@ -125,20 +126,22 @@ public class StartAudit implements CommandExecutor {//开启审核执行的指�
                 stmt.execute(insertStr);//执行插入语句
 
                 BuildPlatform.Build(teleportLocation, this.mConf.GetPlatformSize());//生成平台
-
-                teleportLocation.setX(teleportLocation.getX() + size / 2);//计算平台的中心位置
-                teleportLocation.setY(teleportLocation.getY() + 2);//将玩家传送的高度增加一,防止玩家调入虚空
-                teleportLocation.setZ(teleportLocation.getZ() + size / 2);
-
-                player.setBedSpawnLocation(teleportLocation);//设置重生点为建筑平台的中心
                 player.sendMessage(PluginInfo.LOGGER_PREFIX + Msg.topicName + GetTopicEngName(topicId));//通知玩家要建筑的主题的名字
 
             } else {//玩家已经有平台了
-                teleportLocation = area.location;//设置传送的位置
+                teleportLocation = area.location;//设置位置
                 player.sendMessage(PluginInfo.LOGGER_PREFIX + Msg.topicName + GetTopicEngName(area.topicId));//通知玩家的建筑主题的名字
             }
 
+            this.mLogger.info(teleportLocation.toString());//FIXME
+            teleportLocation.setX(teleportLocation.getX() - size / 2);//计算平台的中心位置
+            teleportLocation.setY(teleportLocation.getY() + 2);//将玩家传送的高度增加二,防止玩家调入虚空
+            teleportLocation.setZ(teleportLocation.getZ() - size / 2);
+
+            player.setBedSpawnLocation(teleportLocation);//设置重生点为建筑平台的中心
             TeleportPortPlayer(teleportLocation, player);//传送玩家到平台的中心
+
+            this.mLogger.info(teleportLocation.toString());//FIXME
         } catch (Exception e) {
             player.kickPlayer(Msg.internalError);//发生错误的时候踢出玩家
             e.printStackTrace();
