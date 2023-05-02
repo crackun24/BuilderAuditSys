@@ -64,6 +64,7 @@ public class AuditMgr extends Thread {//审核管理类
         for (Map.Entry<String, Long> entry : this.mAuditingPlayer.entrySet()) {
             UUID uuid = UUID.fromString(entry.getKey());//取得玩家的UUID
             long deltaTime = System.currentTimeMillis() / 1000 - entry.getValue();//获取审核时间
+
         }
     }
 
