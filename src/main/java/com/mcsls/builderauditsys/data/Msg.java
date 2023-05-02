@@ -10,5 +10,6 @@ public class Msg {//提示消息类
     public static final String internalError = "§c内部错误,请稍后重试.";
     public static final String buildingPlatform = "正在生成建筑平台.";
     public static final String teleport = "§7正在传送到建筑平台.";
-    public static final String topicName = "您的建筑主题为: ";
+    public static final String topicName = "您的建筑主题为: §e";
+    public static final String noApply = "§c你没有申请审核,请前往本服务器的微信公众号上申请审核.";
 }

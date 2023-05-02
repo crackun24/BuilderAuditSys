@@ -15,6 +15,7 @@ import java.util.logging.Logger;
 
 public final class BuilderAuditSys extends JavaPlugin {
     private Logger mLogger;//日志记录器
+    private AuditMgr mAuditMgr;//审核管理对象
     private Config mConf;//配置对象
     private Connection mConn;//数据库连接对象
 
@@ -40,6 +41,7 @@ public final class BuilderAuditSys extends JavaPlugin {
         } catch (Exception e) {
             e.printStackTrace();
         }
+        this.mAuditMgr = new AuditMgr(this.mLogger,this.mConn);//初始化审核管理对象
     }
 
     @Override
@@ -48,11 +50,11 @@ public final class BuilderAuditSys extends JavaPlugin {
         init();//初始化插件
         this.mLogger.info("Loading builder audit sys.");
 
-        getServer().getPluginManager().registerEvents(new OnPlayerJoin(this.mLogger), this);//注册玩家进入游戏事件
+        getServer().getPluginManager().registerEvents(new OnPlayerJoin(this.mLogger,this.mAuditMgr), this);//注册玩家进入游戏事件
         getServer().getPluginManager().registerEvents(new OnWorldTeleport(), this);//注册传送事件
         getServer().getPluginManager().registerEvents(new OnEntityExplode(), this);//实体爆炸事件
 
-        getCommand("StartBuildAudit").setExecutor(new StartAudit(this.mLogger, this.mConf,this.mConn));//注册开启审核的命令
+        getCommand("StartBuildAudit").setExecutor(new StartAudit(this.mLogger, this.mConf,this.mConn,this.mAuditMgr));//注册开启审核的命令
         getCommand("SetbasePoint").setExecutor(new SetBasePoint(this.mConf));//注册设置计算原点的坐标
 
     }

@@ -11,7 +11,7 @@ public class BuildPlatform {
         int y = (int) temp.getY() - 1;//计算的坐标为玩家的下半身的坐标,减去1为玩家站着的那个方块的坐标
         int z = (int) temp.getZ();
 
-        temp.setY(y);
+        temp.setY(y);//设置平台的高度
 
         int Xplacement = 0;
         while (Xplacement < size) {

@@ -2,6 +2,8 @@ name: BuilderAuditSys
 version: '${project.version}'
 main: com.mcsls.builderauditsys.BuilderAuditSys
 api-version: 1.19
+load-before:
+  - WorldGuard
 
 commands:
   StartBuildAudit:

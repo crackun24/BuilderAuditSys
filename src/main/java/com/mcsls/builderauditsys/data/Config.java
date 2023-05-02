@@ -111,6 +111,14 @@ public class Config {//线程安全的config类
         return this.mOriginalFile.getProperty("dbHost");
     }
 
+    public synchronized long GetExmeTime()//获取考试的时长
+    {
+        if (!this.mOriginalFile.containsKey("examTime")) {
+            throw new RuntimeException("Could not find the examTime.");//抛出无法找到考试时长的异常
+        }
+
+        return Long.parseLong(this.mOriginalFile.getProperty("examTime"));
+    }
     public Config() {//构造函数
         this.mOriginalFile = new Properties();//实例化对象
     }
