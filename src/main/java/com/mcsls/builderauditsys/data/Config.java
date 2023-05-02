@@ -119,6 +119,25 @@ public class Config {//线程安全的config类
 
         return Long.parseLong(this.mOriginalFile.getProperty("examTime"));
     }
+
+    public synchronized int GetHttpServicePort()//获取要运行的http服务的端口
+    {
+        if (!this.mOriginalFile.containsKey("examTime")) {
+            throw new RuntimeException("Could not find the webServicePort.");//抛出无法找到http服务端口的异常
+        }
+
+        return Integer.parseInt(this.mOriginalFile.getProperty("webServicePort"));
+    }
+
+    public synchronized long GetDelLoopTime()//获取线程循环删除时的间隔时间
+    {
+        if (!this.mOriginalFile.containsKey("delLoopTime")) {
+            throw new RuntimeException("Could not find the delLoopTime.");//抛出无法找到循环时间的异常
+        }
+
+        return Integer.parseInt(this.mOriginalFile.getProperty("delLoopTime"));
+    }
+
     public Config() {//构造函数
         this.mOriginalFile = new Properties();//实例化对象
     }

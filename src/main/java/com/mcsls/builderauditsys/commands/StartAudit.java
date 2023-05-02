@@ -101,7 +101,6 @@ public class StartAudit implements CommandExecutor {//开启审核执行的指�
 
     private void SetBuildArea(Player player, String areaName, Location location)//根据区域的原点设置可以建筑的区域
     {
-        this.mLogger.info("saving..");//FIXME
         World world = player.getWorld();//获取玩家所在的世界
         RegionManager regionManager = WorldGuard.getInstance().getPlatform().getRegionContainer().get(BukkitAdapter.adapt(world));
         if (regionManager == null) {
@@ -178,15 +177,15 @@ public class StartAudit implements CommandExecutor {//开启审核执行的指�
                 stmt.execute(insertStr);//执行插入语句
 
                 this.mAuditMgr.AddAuditingPlayer(player.getUniqueId().toString());//将玩家添加进正在审核的队列中
-                Area auditArea = new Area(teleportLocation,topicId,areaId);//初始化一个区域对象
-                this.mAuditMgr.AddAuditingArea(player.getUniqueId().toString(),auditArea);//将区域添加进正在审核的玩家和区域对照中
+                Area auditArea = new Area(teleportLocation, topicId, areaId);//初始化一个区域对象
+                this.mAuditMgr.AddAuditingArea(player.getUniqueId().toString(), auditArea);//将区域添加进正在审核的玩家和区域对照中
 
                 BuildPlatform.Build(teleportLocation, this.mConf.GetPlatformSize());//生成平台
                 SetBuildArea(player, Integer.toString(areaId), teleportLocation);//设置建筑区域
                 player.sendMessage(PluginInfo.LOGGER_PREFIX + Msg.topicName + GetTopicChineseName(topicId));//通知玩家要建筑的主题的名字
 
             } else {//玩家已经有平台了,可能为中途退出了游戏
-                teleportLocation = area.location;//设置位置
+                teleportLocation = area.location.clone();//设置位置
                 player.sendMessage(PluginInfo.LOGGER_PREFIX + Msg.topicName + GetTopicChineseName(area.topicId));//通知玩家的建筑主题的名字
             }
 
@@ -195,7 +194,6 @@ public class StartAudit implements CommandExecutor {//开启审核执行的指�
             teleportLocation.setZ(teleportLocation.getZ() - size / 2);
 
             player.setBedSpawnLocation(teleportLocation);//设置重生点为建筑平台的中心
-
             TeleportPortPlayer(teleportLocation, player);//传送玩家到平台的中心
 
         } catch (Exception e) {
