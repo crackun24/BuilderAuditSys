@@ -10,13 +10,18 @@ import com.sk89q.worldguard.protection.ApplicableRegionSet;
 import com.sk89q.worldguard.protection.managers.RegionManager;
 import com.sk89q.worldguard.protection.managers.storage.StorageException;
 import com.sk89q.worldguard.protection.regions.ProtectedRegion;
+import net.md_5.bungee.api.ChatMessageType;
+import net.md_5.bungee.api.chat.TextComponent;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitRunnable;
 
 import javax.swing.plaf.synth.Region;
+import java.awt.*;
 import java.sql.Connection;
 import java.util.HashMap;
 import java.util.Map;
@@ -58,13 +63,37 @@ public class AuditMgr extends Thread {//审核管理类
         }
     }
 
-    public synchronized void SendLeftTimeToPlayer()//将剩余的时间发送给所有审核的玩家
+    private synchronized void AuditingLeftTimeDel() throws StorageException//处理正在审核的玩家
     {
-        long examTime = this.mConf.GetExmeTime();//获取审核的时间
-        for (Map.Entry<String, Long> entry : this.mAuditingPlayer.entrySet()) {
-            UUID uuid = UUID.fromString(entry.getKey());//取得玩家的UUID
-            long deltaTime = System.currentTimeMillis() / 1000 - entry.getValue();//获取审核时间
+        long examTime = this.mConf.GetExmeTime();//获取审核的持续时间
 
+        for (Map.Entry<String, Long> entry : this.mAuditingPlayer.entrySet()) {//遍历正在审核的对照表,踢出过期的玩家
+            long startTime = entry.getValue();//获取玩家开始审核的时间
+            String UUIDStr = entry.getKey();//获取玩家的UUID
+
+            long deltaTime = System.currentTimeMillis() / 1000 - startTime;//获取审核持续时间
+            long leftTime = examTime - deltaTime;//计算剩余的时间
+
+            int min = (int) leftTime / 60;//获取剩余的分钟数
+            int sec = (int) leftTime - min * 60;//获取剩余的秒数
+
+            Player player = Bukkit.getServer().getPlayer(UUID.fromString(UUIDStr));//通过玩家的UUID获取玩家对象
+            if(player!= null) {//判断是否可以获取到玩家,玩家是否在线
+                String leftTimeStr = "§4剩余时间: §e" + min + "§6:§e" + sec;//剩余时间的字符串
+                Bukkit.getScheduler().runTask(this.mPlugin, new Runnable() {
+                    public void run() {
+                        player.spigot().sendMessage(ChatMessageType.ACTION_BAR, new TextComponent(leftTimeStr));//发送剩余时间
+                    }
+                });
+            }
+
+            if (deltaTime > examTime)//判断玩家的审核是否过期了
+            {
+                KickPlayer(UUIDStr, Msg.auditOutDate);//踢出玩家
+                ReceiveAreaBuildPermission(this.mAreaUUIDMap.get(UUIDStr));//获取区域,并且回收权限
+                this.mAreaUUIDMap.remove(UUIDStr);//将区域移除出正在审核的对照表
+                this.mAuditingPlayer.remove(UUIDStr);//删除着呢在审核中的玩家
+            }
         }
     }
 
@@ -144,17 +173,7 @@ public class AuditMgr extends Thread {//审核管理类
             }
         }
 
-        for (Map.Entry<String, Long> entry : this.mAuditingPlayer.entrySet()) {//遍历正在审核的对照表,踢出过期的玩家
-            long startTime = entry.getValue();//获取玩家开始审核的时间
-            String UUID = entry.getKey();//获取玩家的UUID
-            if (System.currentTimeMillis() / 1000 - startTime > outdateTime)//判断玩家的审核是否过期了
-            {
-                KickPlayer(UUID, Msg.auditOutDate);//踢出玩家
-                ReceiveAreaBuildPermission(this.mAreaUUIDMap.get(UUID));//获取区域,并且回收权限
-                this.mAreaUUIDMap.remove(UUID);//将区域移除出正在审核的对照表
-                this.mAuditingPlayer.remove(UUID);//删除着呢在审核中的玩家
-            }
-        }
+
     }
 
     public void run() {
@@ -163,6 +182,7 @@ public class AuditMgr extends Thread {//审核管理类
             try {
                 sleep(waitTime);//线程休眠
                 DeleteOutDateObj();//删除过期的对象
+                AuditingLeftTimeDel();//处理剩余时间
             } catch (Exception e) {
                 e.printStackTrace();
             }
