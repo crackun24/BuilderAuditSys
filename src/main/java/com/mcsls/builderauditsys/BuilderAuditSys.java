@@ -1,10 +1,12 @@
 package com.mcsls.builderauditsys;
 
+import com.mcsls.builderauditsys.commands.Pass;
 import com.mcsls.builderauditsys.commands.SetBasePoint;
 import com.mcsls.builderauditsys.commands.StartAudit;
 import com.mcsls.builderauditsys.data.Config;
 import com.mcsls.builderauditsys.events.OnEntityExplode;
 import com.mcsls.builderauditsys.events.OnPlayerJoin;
+import com.mcsls.builderauditsys.events.OnPlayerMove;
 import com.mcsls.builderauditsys.events.OnWorldTeleport;
 import com.mcsls.builderauditsys.webService.AddAuditPlayer;
 import com.sun.net.httpserver.HttpServer;
@@ -72,10 +74,11 @@ public final class BuilderAuditSys extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new OnPlayerJoin(this.mLogger, this.mAuditMgr), this);//注册玩家进入游戏事件
         getServer().getPluginManager().registerEvents(new OnWorldTeleport(), this);//注册传送事件
         getServer().getPluginManager().registerEvents(new OnEntityExplode(), this);//实体爆炸事件
+        getServer().getPluginManager().registerEvents(new OnPlayerMove(this.mAuditMgr),this);
 
-        getCommand("StartBuildAudit").setExecutor(new StartAudit(this.mLogger, this.mConf, this.mConn, this.mAuditMgr));//注册开启审核的命令
-        getCommand("SetbasePoint").setExecutor(new SetBasePoint(this.mConf));//注册设置计算原点的坐标
-
+        getCommand("sba").setExecutor(new StartAudit(this.mLogger, this.mConf, this.mConn, this.mAuditMgr));//注册开启审核的命令
+        getCommand("sbp").setExecutor(new SetBasePoint(this.mConf));//注册设置计算原点的坐标
+        getCommand("pass").setExecutor(new Pass(this.mAuditMgr));//通过审核的指令
     }
 
     @Override

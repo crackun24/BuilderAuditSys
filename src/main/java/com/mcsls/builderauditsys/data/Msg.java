@@ -14,4 +14,5 @@ public class Msg {//提示消息类
     public static final String noApply = "§c你没有申请审核,请前往本服务器的微信公众号上申请审核.";
     public static final String applyOutDate = "§c等待开始审核超时,请重新申请审核并尽快使用指令开始审核.";
     public static final String auditOutDate= "§c审核时间已到.";
+    public static final String areaNotFount = "§c这片区域没有找到审核的建筑.";
 }

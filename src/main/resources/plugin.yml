@@ -6,8 +6,11 @@ load-before:
   - WorldGuard
 
 commands:
-  StartBuildAudit:
+  sba:
     description: 开始建筑类玩家审核
 
-  SetbasePoint:
+  sbp:
     description: 设置建筑类玩家审核的计算原点
+
+  pass:
+    description: 管理员设置当前的建筑通过审核

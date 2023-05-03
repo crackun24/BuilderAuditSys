@@ -128,7 +128,14 @@ public class Config {//线程安全的config类
 
         return Integer.parseInt(this.mOriginalFile.getProperty("webServicePort"));
     }
+    public synchronized String GetPassHookUrl()//获取发送审核通过的信息的URl
+    {
+        if (!this.mOriginalFile.containsKey("passHookUrl")) {
+            throw new RuntimeException("Could not find the passHookUrl.");//抛出无法找到URL的异常
+        }
 
+        return this.mOriginalFile.getProperty("passHookUrl");
+    }
     public synchronized long GetDelLoopTime()//获取线程循环删除时的间隔时间
     {
         if (!this.mOriginalFile.containsKey("delLoopTime")) {

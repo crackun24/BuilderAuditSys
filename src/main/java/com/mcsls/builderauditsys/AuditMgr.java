@@ -10,19 +10,34 @@ import com.sk89q.worldguard.protection.ApplicableRegionSet;
 import com.sk89q.worldguard.protection.managers.RegionManager;
 import com.sk89q.worldguard.protection.managers.storage.StorageException;
 import com.sk89q.worldguard.protection.regions.ProtectedRegion;
+import com.sk89q.worldguard.protection.regions.RegionContainer;
+import com.sk89q.worldguard.protection.regions.RegionQuery;
+import jdk.internal.net.http.HttpClientBuilderImpl;
 import net.md_5.bungee.api.ChatMessageType;
 import net.md_5.bungee.api.chat.TextComponent;
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitRunnable;
+import sun.net.www.http.HttpClient;
+import sun.util.resources.cldr.ext.LocaleNames_qu;
 
 import javax.swing.plaf.synth.Region;
 import java.awt.*;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.ProtocolException;
+import java.net.URL;
 import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -34,10 +49,12 @@ public class AuditMgr extends Thread {//审核管理类
     private HashMap<String, Long> mAuditApplyPlayer;//已经申请了建筑审核的玩家的UUID,以及申请的时间的对照
     private HashMap<String, Long> mAuditingPlayer;//正在审核的玩家列表,以及和开始审核的时间的对照
     private HashMap<String, Area> mAreaUUIDMap;//正在审核的玩家和区域的对照
+    private HashMap<Integer, Area> mAllAreaMap;//所有的区域的ID的对照
     private Connection mConn;//数据库的连接对象
     private Logger mLogger;
     private Config mConf;//配置文件
     private Plugin mPlugin;
+    private HashMap<Integer, String> mTopicNameMap;//主题和主题ID的对照
 
     private void ReceiveAreaBuildPermission(Area area) throws StorageException//回收该区域的建筑所有权
     {
@@ -78,8 +95,18 @@ public class AuditMgr extends Thread {//审核管理类
             int sec = (int) leftTime - min * 60;//获取剩余的秒数
 
             Player player = Bukkit.getServer().getPlayer(UUID.fromString(UUIDStr));//通过玩家的UUID获取玩家对象
-            if(player!= null) {//判断是否可以获取到玩家,玩家是否在线
-                String leftTimeStr = "§4剩余时间: §e" + min + "§6:§e" + sec;//剩余时间的字符串
+
+            if (player != null) {//判断是否可以获取到玩家,玩家是否在线
+                String minStr = Integer.toString(min);
+                String secStr = Integer.toString(sec);
+
+                if (min < 10)//补齐数字
+                    minStr = "0" + minStr;
+                if (sec < 10)
+                    secStr = "0" + secStr;
+
+
+                String leftTimeStr = "§4剩余时间: §e" + minStr + "§6:§e" + secStr;//剩余时间的字符串
                 Bukkit.getScheduler().runTask(this.mPlugin, new Runnable() {
                     public void run() {
                         player.spigot().sendMessage(ChatMessageType.ACTION_BAR, new TextComponent(leftTimeStr));//发送剩余时间
@@ -117,6 +144,26 @@ public class AuditMgr extends Thread {//审核管理类
         }
     }
 
+    public synchronized void PlayerPass(int areaId) throws SQLException, IOException {//添加通过的玩家
+        String queryStr = "SELECT * FROM area_map WHERE areaId='" + areaId + "';";//构建查询语句
+        Statement stmt = this.mConn.createStatement();//创建查询
+        ResultSet res = stmt.executeQuery(queryStr);//查询
+        res.next();//获取第一个结果
+
+        URL url = new URL(this.mConf.GetPassHookUrl());//设置通过后回调的URL
+        HttpURLConnection con = (HttpURLConnection) url.openConnection();
+        con.setRequestMethod("POST");
+
+        con.setDoOutput(true);
+        DataOutputStream out = new DataOutputStream(con.getOutputStream());
+        String passPlayerUuid = res.getString("ownerUuid");
+        out.writeBytes(passPlayerUuid);//通过审核的玩家的UUID
+        out.flush();
+        out.close();
+        this.mLogger.info(passPlayerUuid);//FIXME
+    }
+
+
     public synchronized void AddAuditingPlayer(String UUID)//将玩家添加进正在审核的队列中
     {
         if (this.mAuditingPlayer.containsKey(UUID)) //玩家已经在审核队列中了
@@ -134,6 +181,7 @@ public class AuditMgr extends Thread {//审核管理类
             throw new RuntimeException("Player's area exist.");//抛出了玩家的区域存在的异常
         } else {//玩家的区域不存在
             this.mAreaUUIDMap.put(UUID, area);//将玩家的UUID和区域对象添加进区域对照表中
+            AddAreaToAllMap(area);//如果玩家审核则为创建了一个新的区域,添加进总区域对照中
         }
     }
 
@@ -167,22 +215,92 @@ public class AuditMgr extends Thread {//审核管理类
         {
             long createTime = entry.getValue();
             String UUID = entry.getKey();//获取玩家的UUID
-            if (System.currentTimeMillis() / 1000 - createTime > outdateTime) {//判断是否请求超时
+            if (System.currentTimeMillis() / 1000 - createTime > outdateTime && !this.mAuditingPlayer.containsKey(UUID)) {//判断是否请求超时,并且玩家不在审核队列中
                 this.mAuditApplyPlayer.remove(UUID);//将玩家移除出已经申请了审核队列
-                KickPlayer(UUID, Msg.applyOutDate);//踢出玩家
+                KickPlayer(UUID, Msg.auditOutDate);//踢出玩家
             }
         }
+    }
+
+    private synchronized void GetAllAreaMapFromDb() throws SQLException//从数据库中添加所有的区域对照
+    {
+        String queryStr = "SELECT * FROM area_map;";
+        Statement stmt = this.mConn.createStatement();//创建查询
+        ResultSet res = stmt.executeQuery(queryStr);//获取所有的结果
+
+        while (res.next())//遍历结果集
+        {
+            Location location = new Location(Bukkit.getWorld("world"), res.getInt("rbPosX"),
+                    res.getInt("rbPosY"), res.getInt("rbPosZ"));//获取区域的原点位置
+
+            int areaId = res.getInt("areaId");
+            Area area = new Area(location, res.getInt("topic"), areaId);//构造新的区域对象
+            this.mAllAreaMap.put(areaId, area);//插入对照
+        }
+    }
+
+    private synchronized void GetAllTopicMapFromDb() throws SQLException//从数据库中获取所有的主题ID和主题的对照
+    {
+        String queryStr = "SELECT * FROM topic_map;";
+        Statement stmt = mConn.createStatement();//创建查询
+        ResultSet res = stmt.executeQuery(queryStr);//执行查询
+
+        while (res.next())//遍历结果集
+        {
+            this.mTopicNameMap.put(res.getInt("topicId"), res.getString("ChineseName"));//插入到主题的对照表中
+        }
+    }
 
 
+    public int GetPlayerRegionId(com.sk89q.worldedit.entity.Player player) {//获取玩家的区域ID
+        RegionContainer container = WorldGuard.getInstance().getPlatform().getRegionContainer();//获取区域的容器
+        RegionQuery query = container.createQuery();//创建查询
+
+        com.sk89q.worldedit.util.Location location = player.getLocation();
+        ApplicableRegionSet regions = query.getApplicableRegions(location);
+
+        String regionId = null;
+        for (ProtectedRegion region : regions) {
+            regionId = region.getId();
+        }
+        if (regionId == null) {
+            return -1;//无法解析,玩家不在任何一个区域内
+        }
+        return Integer.parseInt(regionId);
+    }
+
+    public synchronized Area GetArea(int areaId)//获取区域
+    {
+        return this.mAllAreaMap.get(areaId);
+    }
+
+    public synchronized String GetTopicChiName(int topicId)//获取主题的中文名
+    {
+        return this.mTopicNameMap.get(topicId);
+    }
+
+    public synchronized void AddAreaToAllMap(Area area)//将区域添加进所有的对照中
+    {
+        this.mAllAreaMap.put(area.areaId, area);
     }
 
     public void run() {
+        this.mTopicNameMap = new HashMap<Integer, String>();//初始化容器
+        this.mAllAreaMap = new HashMap<Integer, Area>();
+
         long waitTime = this.mConf.GetDelLoopTime() * 1000;//获取线程循环的时间
+        try {
+            GetAllAreaMapFromDb();//从数据库中获取所有的区域的对照
+            GetAllTopicMapFromDb();//从数据库中获取所有的主题中文名字对照
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
         while (true) {
             try {
                 sleep(waitTime);//线程休眠
-                DeleteOutDateObj();//删除过期的对象
+
                 AuditingLeftTimeDel();//处理剩余时间
+                DeleteOutDateObj();//删除过期的对象
             } catch (Exception e) {
                 e.printStackTrace();
             }
