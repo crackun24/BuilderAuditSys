@@ -49,6 +49,5 @@ public class Pass implements CommandExecutor {
 
     public Pass(AuditMgr auditMgr) {
         this.mAuditMgr = auditMgr;
-
     }
 }

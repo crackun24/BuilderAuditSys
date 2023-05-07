@@ -1,10 +1,11 @@
 package com.mcsls.builderauditsys;
+import okhttp3.*;
 
 import com.mcsls.builderauditsys.data.Area;
 import com.mcsls.builderauditsys.data.Config;
 import com.mcsls.builderauditsys.data.Msg;
-import com.mcsls.builderauditsys.data.PluginInfo;
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
+
 import com.sk89q.worldguard.WorldGuard;
 import com.sk89q.worldguard.protection.ApplicableRegionSet;
 import com.sk89q.worldguard.protection.managers.RegionManager;
@@ -12,28 +13,19 @@ import com.sk89q.worldguard.protection.managers.storage.StorageException;
 import com.sk89q.worldguard.protection.regions.ProtectedRegion;
 import com.sk89q.worldguard.protection.regions.RegionContainer;
 import com.sk89q.worldguard.protection.regions.RegionQuery;
-import jdk.internal.net.http.HttpClientBuilderImpl;
 import net.md_5.bungee.api.ChatMessageType;
 import net.md_5.bungee.api.chat.TextComponent;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
-import org.bukkit.inventory.Inventory;
-import org.bukkit.inventory.ItemStack;
-import org.bukkit.plugin.Plugin;
-import org.bukkit.scheduler.BukkitRunnable;
-import sun.net.www.http.HttpClient;
-import sun.util.resources.cldr.ext.LocaleNames_qu;
 
-import javax.swing.plaf.synth.Region;
-import java.awt.*;
-import java.io.DataOutputStream;
+import org.bukkit.plugin.Plugin;
+
+
+
 import java.io.IOException;
-import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
-import java.net.ProtocolException;
-import java.net.URL;
+
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -43,7 +35,6 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.logging.Logger;
 
-import static java.lang.Thread.sleep;
 
 public class AuditMgr extends Thread {//审核管理类
     private HashMap<String, Long> mAuditApplyPlayer;//已经申请了建筑审核的玩家的UUID,以及申请的时间的对照
@@ -150,17 +141,16 @@ public class AuditMgr extends Thread {//审核管理类
         ResultSet res = stmt.executeQuery(queryStr);//查询
         res.next();//获取第一个结果
 
-        URL url = new URL(this.mConf.GetPassHookUrl());//设置通过后回调的URL
-        HttpURLConnection con = (HttpURLConnection) url.openConnection();
-        con.setRequestMethod("POST");
+        String playerUuid = res.getString("ownerUuid");
+        RequestBody requestBody = RequestBody.create(playerUuid, MediaType.parse("text/plain"));
 
-        con.setDoOutput(true);
-        DataOutputStream out = new DataOutputStream(con.getOutputStream());
-        String passPlayerUuid = res.getString("ownerUuid");
-        out.writeBytes(passPlayerUuid);//通过审核的玩家的UUID
-        out.flush();
-        out.close();
-        this.mLogger.info(passPlayerUuid);//FIXME
+        OkHttpClient client = new OkHttpClient();
+
+        Request request = new Request.Builder()
+                .url(this.mConf.GetPassHookUrl())//设置审核通过时的回调URL
+                .post(requestBody)
+                .build();
+        Response rep = client.newCall(request).execute();//执行指令
     }
 
 
