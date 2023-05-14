@@ -19,9 +19,9 @@ public class OnPlayerJoin implements Listener {
     {
         Player player = event.getPlayer();//获取玩家对象
         String UUID = event.getPlayer().getUniqueId().toString();//获取玩家的UUID
-        if(player.isOp())//玩家为管理员
+        if (player.isOp())//玩家为管理员
         {
-           return;//无需执行下面的验证操作
+            return;//无需执行下面的验证操作
         }
         if (!this.mAuditMgr.IsPlayerApplyAudit(UUID) && !this.mAuditMgr.IsPlayerAuditing(UUID)) {//判断玩家是否已经在微信公众号上面申请了审核,或者玩家为正在审核
             player.kickPlayer(Msg.noApply);//将玩家踢出,并告知要去微信公众号上面申请审核
